@@ -6,17 +6,44 @@ https://sprig.hackclub.com/gallery/getting_started
 @author: me
 @tags: []
 @addedOn: 2024-00-00
+
 */
 
-function shuffleSkibidi() {
-  clearTile(1, 2)
-  clearTile(5, 2)
-  if (Math.random() >= 0.5) {
-    addSprite(1, 2, skibidiRight)
-    addSprite(5, 2, toiletLeft)
+function shuffleSkibidi(x, y, spriteList) {
+  clearTile(x, y)
+  random = Math.random()
+  console.log(random)
+  if (random >= badThreshold) {
+    if (random <= skibidiThreshold) {
+      addSprite(x, y, spriteList[1])
+    } else {
+      addSprite(x, y, spriteList[2])
+    }
   } else {
-    addSprite(5, 2, skibidiLeft)
-    addSprite(1, 2, toiletRight)
+    addSprite(x, y, spriteList[0])
+  }
+}
+
+async function toiletBehaviour(x, y, spriteList, toiletState, s) {
+  if (toiletState == 'toilet') {
+    await new Promise(r => setTimeout(r, waitTime));
+    clearTile(x, y)
+    random = Math.random()
+    if (random <= skibidiThreshold) {
+      toiletState = 'skibidi'
+      addSprite(x, y, spriteList[1])
+    } else {
+      toiletState = 'bomb'
+      addSprite(x, y, spriteList[2])
+    }
+  } else if (toiletState == 'skibidi') {
+    await new Promise(r => setTimeout(r, skibidiTime));
+    if (beenShot[s] == 'false') {
+      // game end
+    }
+  } else {
+    await new Promise(r => setTimeout(r, bombTime));
+    toiletState = 'toilet'
   }
 }
 
@@ -36,6 +63,25 @@ const bombUp = "l"
 const bombDown = "m"
 const bombLeft = "n"
 const bombRight = "o"
+
+let waitTime = 1500;
+let skibidiTime = 1000;
+let bombTime = 500;
+let skibidiThreshold = 0.8;
+let bombThreshold = 0.2;
+
+let topState = 'toilet';
+let leftState = 'toilet';
+let bottomState = 'toilet';
+let rightState = 'toilet';
+let beenShot = [false, false, false, false];
+
+toiletBehaviour(1, 2, [toiletRight, skibidiRight, bombRight], leftState, 3)
+toiletBehaviour(5, 2, [toiletLeft, skibidiLeft, bombLeft], rightState, 1)
+toiletBehaviour(3, 0, [toiletDown, skibidiDown, bombDown], topState, 0)
+toiletBehaviour(3, 4, [toiletUp, skibidiUp, bombUp], bottomState, 2)
+
+
 
 setLegend(
   [ cameraUp, bitmap`
@@ -174,7 +220,7 @@ LL111777711L....
 ......LLLLLL....
 ................
 ................`],
-  [ toiletUp, bitmap`
+  [ skibidiUp, bitmap`
 .....6FFFFFF6...
 .....66FFFF66...
 ......66CC66....
@@ -208,7 +254,7 @@ LL111666611L....
 ....LLLLLL......
 ................
 ................`],
-  [ toiletDown, bitmap`
+  [ skibidiDown, bitmap`
 ...660FFFF06....
 ...6FF3FF3F66...
 ..66FFFFFFFF6...
@@ -326,6 +372,16 @@ const levels = [
 
 setMap(levels[level])
 
+/*
+ok behaviors:
+- each toilet will start as normal
+- normal toilets will wait 0.5-1.5s (starting time) before changing
+- skibidi toilets will have to be shot in 1s (starting time) or you lose
+- bomb toilets will be there for 0.5-1s (starting time), and you have to wait and not shoot them
+- as time goes on, times will shorten and there will be more bombs
+- also shooting normal toilets does nothing
+*/
+
 onInput("a", () => {
   clearTile(3, 2)
   addSprite(3, 2, cameraLeft)
@@ -344,8 +400,4 @@ onInput("w", () => {
 onInput("s", () => {
   clearTile(3, 2)
   addSprite(3, 2, cameraDown)
-})
-
-afterInput(() => {
-  shuffleSkibidi();
 })
