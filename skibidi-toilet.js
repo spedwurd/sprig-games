@@ -9,41 +9,64 @@ https://sprig.hackclub.com/gallery/getting_started
 
 */
 
-function shuffleSkibidi(x, y, spriteList) {
-  clearTile(x, y)
-  random = Math.random()
-  console.log(random)
-  if (random >= badThreshold) {
-    if (random <= skibidiThreshold) {
-      addSprite(x, y, spriteList[1])
-    } else {
-      addSprite(x, y, spriteList[2])
-    }
+async function toiletBehaviour(x, y, spriteList, s) {
+  while (true) {
+  if (gameOver == true) {
+    addText('game over', options={x: 6, y: 6, color: color`3`})
+    break
   } else {
-    addSprite(x, y, spriteList[0])
-  }
-}
-
-async function toiletBehaviour(x, y, spriteList, toiletState, s) {
-  if (toiletState == 'toilet') {
+  
+  if (toiletState[s] == 'toilet') {
     await new Promise(r => setTimeout(r, waitTime));
     clearTile(x, y)
     random = Math.random()
     if (random <= skibidiThreshold) {
-      toiletState = 'skibidi'
+      toiletState[s] = 'skibidi'
       addSprite(x, y, spriteList[1])
     } else {
-      toiletState = 'bomb'
+      toiletState[s] = 'bomb'
       addSprite(x, y, spriteList[2])
     }
-  } else if (toiletState == 'skibidi') {
+  } else if (toiletState[s] == 'skibidi') {
     await new Promise(r => setTimeout(r, skibidiTime));
-    if (beenShot[s] == 'false') {
-      // game end
+    if (beenShot[s] == false) {
+      gameOver = true;
+    } else {
+      beenShot[s] = false
     }
+    toiletState[s] = 'toilet'
+    clearTile(x, y)
+    addSprite(x, y, spriteList[0])
   } else {
     await new Promise(r => setTimeout(r, bombTime));
-    toiletState = 'toilet'
+    toiletState[s] = 'toilet'
+    clearTile(x, y)
+    addSprite(x, y, spriteList[0])
+  }
+  }
+  }
+}
+
+function cameraBehaviour(x, y, s) {
+  if (gameOver == false) {
+  
+  clearTile(3, 2)
+  addSprite(3, 2, cameras[s])
+  if (toiletState[s] == 'skibidi') {
+    clearTile(x, y)
+    addSprite(x, y, toilets[s])
+    toiletState[s] = 'toilet'
+    beenShot[s] = true
+    score += 1;
+    waitTime -= 20 * (waitTime >= 200)
+    skibidiTime -= 20 * (skibidiTime >= 200)
+    console.log(toiletState[s])
+  } else if (toiletState[s] == 'bomb') {
+    clearTile(x, y)
+    addSprite(x, y, toilets[s])
+    gameOver = true;
+    addText('game over', options={x: 6, y: 6, color: color`3`})
+  }
   }
 }
 
@@ -51,14 +74,19 @@ const cameraRight = "p"
 const cameraLeft = "a"
 const cameraUp = "b"
 const cameraDown = "c"
+const cameras = [cameraUp, cameraRight, cameraDown, cameraLeft]
+
 const skibidiUp = "d"
 const skibidiDown = "e"
 const skibidiLeft = "f"
 const skibidiRight = "g"
+
 const toiletUp = "h"
 const toiletDown = "i"
 const toiletRight = "j"
 const toiletLeft = "k"
+const toilets = [toiletDown, toiletLeft, toiletUp, toiletRight]
+
 const bombUp = "l"
 const bombDown = "m"
 const bombLeft = "n"
@@ -70,16 +98,16 @@ let bombTime = 500;
 let skibidiThreshold = 0.8;
 let bombThreshold = 0.2;
 
-let topState = 'toilet';
-let leftState = 'toilet';
-let bottomState = 'toilet';
-let rightState = 'toilet';
+let toiletState = ['toilet', 'toilet', 'toilet', 'toilet']
 let beenShot = [false, false, false, false];
 
-toiletBehaviour(1, 2, [toiletRight, skibidiRight, bombRight], leftState, 3)
-toiletBehaviour(5, 2, [toiletLeft, skibidiLeft, bombLeft], rightState, 1)
-toiletBehaviour(3, 0, [toiletDown, skibidiDown, bombDown], topState, 0)
-toiletBehaviour(3, 4, [toiletUp, skibidiUp, bombUp], bottomState, 2)
+let gameOver = false;
+let score = 0;
+
+toiletBehaviour(1, 2, [toiletRight, skibidiRight, bombRight], 3)
+toiletBehaviour(5, 2, [toiletLeft, skibidiLeft, bombLeft], 1)
+toiletBehaviour(3, 0, [toiletDown, skibidiDown, bombDown], 0)
+toiletBehaviour(3, 4, [toiletUp, skibidiUp, bombUp], 2)
 
 
 
@@ -357,7 +385,6 @@ LL110900711L....
 ................
 ................`],
 )
-
 setSolids([])
 
 let level = 0
@@ -372,32 +399,22 @@ const levels = [
 
 setMap(levels[level])
 
-/*
-ok behaviors:
-- each toilet will start as normal
-- normal toilets will wait 0.5-1.5s (starting time) before changing
-- skibidi toilets will have to be shot in 1s (starting time) or you lose
-- bomb toilets will be there for 0.5-1s (starting time), and you have to wait and not shoot them
-- as time goes on, times will shorten and there will be more bombs
-- also shooting normal toilets does nothing
-*/
-
 onInput("a", () => {
-  clearTile(3, 2)
-  addSprite(3, 2, cameraLeft)
+  cameraBehaviour(1, 2, 3)
 })
 
 onInput("d", () => {
-  clearTile(3, 2)
-  addSprite(3, 2, cameraRight)
+  cameraBehaviour(5, 2, 1)
 })
 
 onInput("w", () => {
-  clearTile(3, 2)
-  addSprite(3, 2, cameraUp)
+  cameraBehaviour(3, 0, 0)
 })
 
 onInput("s", () => {
-  clearTile(3, 2)
-  addSprite(3, 2, cameraDown)
+  cameraBehaviour(3, 4, 2)
+})
+
+afterInput(() => {
+  addText('score: ' + score, options={x: 6, y: 5, color: color`9`})
 })
